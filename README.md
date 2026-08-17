@@ -27,8 +27,8 @@ This refactored edition keeps the original API behavior but uses explicit file a
 ```text
 cmd/api/
 ├── app.go                  # Fiber app and HTTP middleware setup
-├── main.go                 # composition root and dependency wiring
-└── routes.go               # HTTP endpoint registration
+├── main.go                 # application lifecycle
+└── routes.go               # HTTP dependency wiring and endpoint registration
 
 docs/
 ├── openapi.yaml            # OpenAPI specification
@@ -125,5 +125,5 @@ internal/models/category.go
 internal/handler/category.go
 ```
 
-Then wire the repository/service in `cmd/api/main.go`, configure any HTTP
-concerns in `cmd/api/app.go`, and register routes in `cmd/api/routes.go`.
+Then wire the repository/service and handler in `cmd/api/routes.go`, configure
+HTTP concerns in `cmd/api/app.go`, and register routes there.

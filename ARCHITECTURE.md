@@ -5,8 +5,8 @@ Dependency direction:
 ```text
 cmd/api
   ├── app.go         builds the Fiber app and HTTP middleware
-  ├── routes.go      registers handlers and middleware
-  └── main.go        wires concrete dependencies
+  ├── routes.go      creates HTTP dependencies and registers endpoints
+  └── main.go        starts and stops the application
 
 Handler (Fiber)  --->  Usecase  --->  Domain
                           ^
@@ -27,9 +27,9 @@ Middleware (HTTP) ---> Usecase token port
 - `internal/config` — Fiber, CORS and request-ID configuration.
 - `internal/platform` — config, database, logger and JWT/password implementation.
 - `internal/shared` — small reusable primitives such as pagination.
-- `cmd/api/main.go` — composition root / dependency injection.
+- `cmd/api/main.go` — application lifecycle: config, database connection and shutdown.
 - `cmd/api/app.go` — Fiber app and HTTP middleware setup.
-- `cmd/api/routes.go` — endpoint registration.
+- `cmd/api/routes.go` — HTTP composition root: repository/use case/handler construction and endpoint registration.
 - `docs/openapi.yaml` and `docs/swagger-ui.html` — API specification and Swagger UI.
 
 ## Repository boundary

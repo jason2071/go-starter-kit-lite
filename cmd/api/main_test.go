@@ -7,14 +7,20 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpHandler "github.com/jason2071/go-starter-kit-lite/internal/handler"
+	"github.com/jason2071/go-starter-kit-lite/internal/platform"
 )
 
 func TestRegisterRoutesAddsHealthEndpoint(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	dependencies := httpHandler.Dependencies{}
 	app := newApp(logger, "*")
-	registerRoutes(app, httpHandler.NewHandler(dependencies), nil)
+	registerRoutes(app, routeDependencies{
+		Ready: func() error { return nil },
+		Config: platform.Config{
+			JWTSecret:   "test-secret",
+			JWTIssuer:   "test",
+			JWTAudience: "test",
+		},
+	})
 
 	response, err := app.Test(httptest.NewRequest(stdhttp.MethodGet, "/healthz", nil))
 	if err != nil {
