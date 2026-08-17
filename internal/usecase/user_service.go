@@ -7,21 +7,22 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/jason2071/go-starter-kit-lite/internal/domain"
 	"github.com/jason2071/go-starter-kit-lite/internal/shared"
 )
 
 type UserService struct {
-	userStore UserStore
+	userRepository domain.UserRepository
 }
 
-func NewUserService(userStore UserStore) *UserService {
-	return &UserService{userStore: userStore}
+func NewUserService(userRepository domain.UserRepository) *UserService {
+	return &UserService{userRepository: userRepository}
 }
 
 func (s *UserService) GetUserByID(ctx context.Context, id uuid.UUID) (*UserResponse, error) {
-	user, err := s.userStore.FindUserByID(ctx, id)
+	user, err := s.userRepository.FindUserByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
+		if errors.Is(err, domain.ErrUserNotFound) {
 			return nil, NewError(ErrNotFound, "USER_NOT_FOUND", "user not found")
 		}
 		return nil, WrapError(ErrInternal, "USER_READ_FAILED", "failed to read user", err)
@@ -39,7 +40,7 @@ func (s *UserService) ListUsers(ctx context.Context, req ListUsersRequest) (*Lis
 		order = "desc"
 	}
 
-	users, total, err := s.userStore.ListUsers(ctx, ListUsersOptions{
+	users, total, err := s.userRepository.ListUsers(ctx, domain.ListUsersOptions{
 		Page:     page,
 		Search:   strings.TrimSpace(req.Search),
 		IsActive: req.IsActive,

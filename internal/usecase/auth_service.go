@@ -12,22 +12,22 @@ import (
 )
 
 type AuthService struct {
-	userStore         UserStore
-	refreshTokenStore RefreshTokenStore
+	userRepository    domain.UserRepository
+	refreshTokenStore domain.RefreshTokenRepository
 	tokenManager      TokenManager
 	passwordHasher    PasswordHasher
 	refreshTokenTTL   time.Duration
 }
 
 func NewAuthService(
-	userStore UserStore,
-	refreshTokenStore RefreshTokenStore,
+	userRepository domain.UserRepository,
+	refreshTokenStore domain.RefreshTokenRepository,
 	tokenManager TokenManager,
 	passwordHasher PasswordHasher,
 	refreshTokenTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		userStore:         userStore,
+		userRepository:    userRepository,
 		refreshTokenStore: refreshTokenStore,
 		tokenManager:      tokenManager,
 		passwordHasher:    passwordHasher,
@@ -38,9 +38,9 @@ func NewAuthService(
 func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
-	if _, err := s.userStore.FindUserByEmail(ctx, email); err == nil {
+	if _, err := s.userRepository.FindUserByEmail(ctx, email); err == nil {
 		return nil, NewError(ErrConflict, "EMAIL_ALREADY_EXISTS", "email already exists")
-	} else if !errors.Is(err, ErrUserNotFound) {
+	} else if !errors.Is(err, domain.ErrUserNotFound) {
 		return nil, WrapError(ErrInternal, "USER_LOOKUP_FAILED", "failed to check user", err)
 	}
 
@@ -57,14 +57,14 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
 		IsActive:     true,
 	}
 
-	if err := s.userStore.CreateUserWithRole(ctx, user, "user"); err != nil {
-		if errors.Is(err, ErrEmailExists) {
+	if err := s.userRepository.CreateUserWithRole(ctx, user, "user"); err != nil {
+		if errors.Is(err, domain.ErrEmailExists) {
 			return nil, NewError(ErrConflict, "EMAIL_ALREADY_EXISTS", "email already exists")
 		}
 		return nil, WrapError(ErrInternal, "USER_CREATE_FAILED", "failed to create user", err)
 	}
 
-	createdUser, err := s.userStore.FindUserByID(ctx, user.ID)
+	createdUser, err := s.userRepository.FindUserByID(ctx, user.ID)
 	if err != nil {
 		return nil, WrapError(ErrInternal, "USER_READ_FAILED", "failed to read created user", err)
 	}
@@ -81,12 +81,12 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
 }
 
 func (s *AuthService) LoginUser(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
-	user, err := s.userStore.FindUserByEmail(
+	user, err := s.userRepository.FindUserByEmail(
 		ctx,
 		strings.ToLower(strings.TrimSpace(req.Email)),
 	)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
+		if errors.Is(err, domain.ErrUserNotFound) {
 			return nil, NewError(ErrUnauthorized, "INVALID_CREDENTIALS", "invalid email or password")
 		}
 		return nil, WrapError(ErrInternal, "LOGIN_FAILED", "failed to login", err)
@@ -116,13 +116,13 @@ func (s *AuthService) RefreshToken(ctx context.Context, rawRefreshToken string) 
 
 	storedToken, err := s.refreshTokenStore.FindActiveRefreshTokenByHash(ctx, oldHash)
 	if err != nil {
-		if errors.Is(err, ErrRefreshTokenNotFound) {
+		if errors.Is(err, domain.ErrRefreshTokenNotFound) {
 			return nil, NewError(ErrUnauthorized, "INVALID_REFRESH_TOKEN", "invalid or expired refresh token")
 		}
 		return nil, WrapError(ErrInternal, "REFRESH_FAILED", "failed to refresh token", err)
 	}
 
-	user, err := s.userStore.FindUserByID(ctx, storedToken.UserID)
+	user, err := s.userRepository.FindUserByID(ctx, storedToken.UserID)
 	if err != nil || user == nil || !user.IsActive {
 		return nil, NewError(ErrUnauthorized, "INVALID_REFRESH_TOKEN", "invalid or expired refresh token")
 	}
@@ -145,7 +145,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, rawRefreshToken string) 
 	}
 
 	if err := s.refreshTokenStore.RotateRefreshToken(ctx, oldHash, nextToken); err != nil {
-		if errors.Is(err, ErrRefreshTokenUsed) {
+		if errors.Is(err, domain.ErrRefreshTokenUsed) {
 			return nil, NewError(ErrUnauthorized, "INVALID_REFRESH_TOKEN", "refresh token was already used or expired")
 		}
 		return nil, WrapError(ErrInternal, "REFRESH_FAILED", "failed to rotate refresh token", err)
@@ -172,9 +172,9 @@ func (s *AuthService) LogoutUser(ctx context.Context, rawRefreshToken string) er
 }
 
 func (s *AuthService) GetCurrentUser(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
-	user, err := s.userStore.FindUserByID(ctx, userID)
+	user, err := s.userRepository.FindUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
+		if errors.Is(err, domain.ErrUserNotFound) {
 			return nil, NewError(ErrNotFound, "USER_NOT_FOUND", "user not found")
 		}
 		return nil, WrapError(ErrInternal, "USER_READ_FAILED", "failed to read user", err)

@@ -38,7 +38,9 @@ internal/
 │   └── config.go           # Fiber, CORS and request-ID configuration
 ├── domain/
 │   ├── user.go
-│   └── refresh_token.go
+│   ├── user_repository.go          # UserRepository contract
+│   ├── refresh_token.go
+│   └── refresh_token_repository.go # RefreshTokenRepository contract
 ├── usecase/
 │   ├── auth_service.go
 │   ├── auth_types.go
@@ -47,7 +49,9 @@ internal/
 │   └── error.go
 ├── repository/
 │   ├── user_repository.go
-│   └── refresh_token_repository.go
+│   ├── user_model.go           # GORM mapping
+│   ├── refresh_token_repository.go
+│   └── refresh_token_model.go  # GORM mapping
 ├── handler/http/
 │   ├── app.go
 │   ├── auth_handler.go
@@ -66,6 +70,10 @@ internal/
 └── shared/
     └── pagination.go
 ```
+
+`domain` owns the `UserRepository` and `RefreshTokenRepository` interfaces.
+`repository` contains their GORM/PostgreSQL implementations and GORM models;
+it is never imported by `domain` or `usecase`.
 
 ## Quick start
 
@@ -108,6 +116,7 @@ For `Category`, follow the same naming pattern:
 
 ```text
 internal/domain/category.go
+internal/domain/category_repository.go
 internal/usecase/category_service.go
 internal/usecase/category_types.go
 internal/repository/category_repository.go

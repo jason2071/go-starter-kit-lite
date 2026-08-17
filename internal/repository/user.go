@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jason2071/go-starter-kit-lite/internal/domain"
-	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
+	model "github.com/jason2071/go-starter-kit-lite/internal/models"
 )
 
 type UserRepository struct {
@@ -26,17 +26,17 @@ func (r *UserRepository) CreateUserWithRole(
 	roleName string,
 ) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var role domain.RoleModel
+		var role model.RoleModel
 		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
 			return err
 		}
 
 		model := userToModel(user)
-		model.Roles = []domain.RoleModel{role}
+		model.Roles = []model.RoleModel{role}
 
 		if err := tx.Create(&model).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return usecase.ErrEmailExists
+				return domain.ErrEmailExists
 			}
 			return err
 		}
@@ -48,14 +48,14 @@ func (r *UserRepository) FindUserByID(
 	ctx context.Context,
 	id uuid.UUID,
 ) (*domain.User, error) {
-	var model domain.UserModel
+	var model model.UserModel
 	err := r.db.WithContext(ctx).
 		Preload("Roles").
 		First(&model, "id = ?", id).
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, usecase.ErrUserNotFound
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -66,14 +66,14 @@ func (r *UserRepository) FindUserByEmail(
 	ctx context.Context,
 	email string,
 ) (*domain.User, error) {
-	var model domain.UserModel
+	var model model.UserModel
 	err := r.db.WithContext(ctx).
 		Preload("Roles").
 		First(&model, "email = ?", email).
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, usecase.ErrUserNotFound
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -82,9 +82,9 @@ func (r *UserRepository) FindUserByEmail(
 
 func (r *UserRepository) ListUsers(
 	ctx context.Context,
-	opts usecase.ListUsersOptions,
+	opts domain.ListUsersOptions,
 ) ([]domain.User, int64, error) {
-	query := r.db.WithContext(ctx).Model(&domain.UserModel{})
+	query := r.db.WithContext(ctx).Model(&model.UserModel{})
 
 	if opts.Search != "" {
 		search := "%" + opts.Search + "%"
@@ -116,7 +116,7 @@ func (r *UserRepository) ListUsers(
 		order = "ASC"
 	}
 
-	var models []domain.UserModel
+	var models []model.UserModel
 	err := query.
 		Preload("Roles").
 		Order(fmt.Sprintf("%s %s", sortColumn, order)).
@@ -135,8 +135,8 @@ func (r *UserRepository) ListUsers(
 	return users, total, nil
 }
 
-func userToModel(user *domain.User) domain.UserModel {
-	return domain.UserModel{
+func userToModel(user *domain.User) model.UserModel {
+	return model.UserModel{
 		ID:           user.ID,
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
@@ -147,7 +147,7 @@ func userToModel(user *domain.User) domain.UserModel {
 	}
 }
 
-func modelToUser(model *domain.UserModel) *domain.User {
+func modelToUser(model *model.UserModel) *domain.User {
 	roles := make([]domain.Role, 0, len(model.Roles))
 	for _, role := range model.Roles {
 		roles = append(roles, domain.Role{ID: role.ID, Name: role.Name})

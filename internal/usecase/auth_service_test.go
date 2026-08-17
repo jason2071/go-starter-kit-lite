@@ -34,7 +34,7 @@ func (f *fakeUserStore) FindUserByID(
 			return user, nil
 		}
 	}
-	return nil, ErrUserNotFound
+	return nil, domain.ErrUserNotFound
 }
 
 func (f *fakeUserStore) FindUserByEmail(
@@ -43,14 +43,14 @@ func (f *fakeUserStore) FindUserByEmail(
 ) (*domain.User, error) {
 	user := f.users[email]
 	if user == nil {
-		return nil, ErrUserNotFound
+		return nil, domain.ErrUserNotFound
 	}
 	return user, nil
 }
 
 func (f *fakeUserStore) ListUsers(
 	context.Context,
-	ListUsersOptions,
+	domain.ListUsersOptions,
 ) ([]domain.User, int64, error) {
 	return nil, 0, nil
 }
@@ -73,7 +73,7 @@ func (f *fakeRefreshTokenStore) FindActiveRefreshTokenByHash(
 ) (*domain.RefreshToken, error) {
 	token := f.tokens[hash]
 	if token == nil {
-		return nil, ErrRefreshTokenNotFound
+		return nil, domain.ErrRefreshTokenNotFound
 	}
 	return token, nil
 }
