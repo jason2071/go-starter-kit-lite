@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/gofiber/fiber/v2"
 
-	httpHandler "github.com/jason2071/go-starter-kit-lite/internal/handler/http"
+	httpHandler "github.com/jason2071/go-starter-kit-lite/internal/handler"
 	"github.com/jason2071/go-starter-kit-lite/internal/middleware"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )

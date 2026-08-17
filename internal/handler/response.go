@@ -65,7 +65,7 @@ func validationDetails(err error) map[string]string {
 	return details
 }
 
-func errorHandler(logger *slog.Logger) fiber.ErrorHandler {
+func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		var appError *usecase.AppError
 		if errors.As(err, &appError) {

@@ -1,20 +1,15 @@
 package handler
 
 import (
-	"log/slog"
-
 	"github.com/go-playground/validator/v10"
 
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
 
 type Dependencies struct {
-	Ready          func() error
-	AuthService    *usecase.AuthService
-	UserService    *usecase.UserService
-	TokenManager   usecase.TokenManager
-	Logger         *slog.Logger
-	AllowedOrigins string
+	Ready       func() error
+	AuthService *usecase.AuthService
+	UserService *usecase.UserService
 }
 
 type Handler struct {

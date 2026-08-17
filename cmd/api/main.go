@@ -9,7 +9,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	httpHandler "github.com/jason2071/go-starter-kit-lite/internal/handler/http"
+	httpHandler "github.com/jason2071/go-starter-kit-lite/internal/handler"
 	"github.com/jason2071/go-starter-kit-lite/internal/platform"
 	"github.com/jason2071/go-starter-kit-lite/internal/repository"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
@@ -58,14 +58,11 @@ func main() {
 	userService := usecase.NewUserService(userRepository)
 
 	dependencies := httpHandler.Dependencies{
-		Ready:          sqlDB.Ping,
-		AuthService:    authService,
-		UserService:    userService,
-		TokenManager:   security,
-		Logger:         logger,
-		AllowedOrigins: cfg.AllowedOrigin,
+		Ready:       sqlDB.Ping,
+		AuthService: authService,
+		UserService: userService,
 	}
-	app := httpHandler.NewApp(dependencies)
+	app := newApp(logger, cfg.AllowedOrigin)
 	registerRoutes(app, httpHandler.NewHandler(dependencies), security)
 
 	listenErr := make(chan error, 1)

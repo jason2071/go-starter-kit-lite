@@ -26,6 +26,7 @@ This refactored edition keeps the original API behavior but uses explicit file a
 
 ```text
 cmd/api/
+├── app.go                  # Fiber app and HTTP middleware setup
 ├── main.go                 # composition root and dependency wiring
 └── routes.go               # HTTP endpoint registration
 
@@ -48,17 +49,17 @@ internal/
 │   ├── user_types.go
 │   └── error.go
 ├── repository/
-│   ├── user_repository.go
-│   ├── user_model.go           # GORM mapping
-│   ├── refresh_token_repository.go
-│   └── refresh_token_model.go  # GORM mapping
-├── handler/http/
-│   ├── app.go
-│   ├── auth_handler.go
+│   ├── user.go
+│   └── refresh_token.go
+├── models/
+│   ├── user.go               # GORM mappings
+│   └── refresh_token.go      # GORM mappings
+├── handler/
+│   ├── auth.go
 │   ├── dependencies.go
 │   ├── response.go
-│   ├── user_handler.go
-│   └── system_handler.go
+│   ├── user.go
+│   └── system.go
 ├── middleware/
 │   ├── auth.go
 │   └── request_logger.go
@@ -72,8 +73,8 @@ internal/
 ```
 
 `domain` owns the `UserRepository` and `RefreshTokenRepository` interfaces.
-`repository` contains their GORM/PostgreSQL implementations and GORM models;
-it is never imported by `domain` or `usecase`.
+`repository` contains their GORM/PostgreSQL implementations, while `models`
+contains GORM table mappings. Neither is imported by `domain` or `usecase`.
 
 ## Quick start
 
@@ -120,7 +121,9 @@ internal/domain/category_repository.go
 internal/usecase/category_service.go
 internal/usecase/category_types.go
 internal/repository/category_repository.go
-internal/handler/http/category_handler.go
+internal/models/category.go
+internal/handler/category.go
 ```
 
-Then wire the repository/service in `cmd/api/main.go` and register routes in `cmd/api/routes.go`.
+Then wire the repository/service in `cmd/api/main.go`, configure any HTTP
+concerns in `cmd/api/app.go`, and register routes in `cmd/api/routes.go`.
