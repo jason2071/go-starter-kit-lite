@@ -3,6 +3,7 @@ package http
 import (
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/jason2071/go-starter-kit-lite/internal/middleware"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
 
@@ -72,7 +73,7 @@ func (h *Handler) LogoutUser(c *fiber.Ctx) error {
 func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
 	response, err := h.authService.GetCurrentUser(
 		c.UserContext(),
-		currentUser(c).ID,
+		middleware.CurrentUser(c).ID,
 	)
 	if err != nil {
 		return err

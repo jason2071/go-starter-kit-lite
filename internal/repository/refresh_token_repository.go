@@ -5,24 +5,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/jason2071/go-starter-kit-lite/internal/domain"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
-
-type RefreshTokenModel struct {
-	ID        uuid.UUID  `gorm:"type:uuid;primaryKey"`
-	UserID    uuid.UUID  `gorm:"type:uuid;column:user_id;index;not null"`
-	TokenHash string     `gorm:"column:token_hash;size:64;uniqueIndex;not null"`
-	ExpiresAt time.Time  `gorm:"column:expires_at;index;not null"`
-	RevokedAt *time.Time `gorm:"column:revoked_at"`
-	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime"`
-}
-
-func (RefreshTokenModel) TableName() string { return "refresh_tokens" }
 
 type RefreshTokenRepository struct {
 	db *gorm.DB
@@ -44,7 +32,7 @@ func (r *RefreshTokenRepository) FindActiveRefreshTokenByHash(
 	ctx context.Context,
 	hash string,
 ) (*domain.RefreshToken, error) {
-	var model RefreshTokenModel
+	var model domain.RefreshTokenModel
 
 	err := r.db.WithContext(ctx).
 		Where(
@@ -70,7 +58,7 @@ func (r *RefreshTokenRepository) RotateRefreshToken(
 	nextToken *domain.RefreshToken,
 ) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var current RefreshTokenModel
+		var current domain.RefreshTokenModel
 
 		err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -105,14 +93,14 @@ func (r *RefreshTokenRepository) RevokeRefreshToken(
 	now := time.Now().UTC()
 
 	return r.db.WithContext(ctx).
-		Model(&RefreshTokenModel{}).
+		Model(&domain.RefreshTokenModel{}).
 		Where("token_hash = ? AND revoked_at IS NULL", hash).
 		Update("revoked_at", now).
 		Error
 }
 
-func refreshTokenToModel(token *domain.RefreshToken) RefreshTokenModel {
-	return RefreshTokenModel{
+func refreshTokenToModel(token *domain.RefreshToken) domain.RefreshTokenModel {
+	return domain.RefreshTokenModel{
 		ID:        token.ID,
 		UserID:    token.UserID,
 		TokenHash: token.TokenHash,
@@ -122,7 +110,7 @@ func refreshTokenToModel(token *domain.RefreshToken) RefreshTokenModel {
 	}
 }
 
-func modelToRefreshToken(model *RefreshTokenModel) *domain.RefreshToken {
+func modelToRefreshToken(model *domain.RefreshTokenModel) *domain.RefreshToken {
 	return &domain.RefreshToken{
 		ID:        model.ID,
 		UserID:    model.UserID,

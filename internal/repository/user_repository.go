@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,26 +11,6 @@ import (
 	"github.com/jason2071/go-starter-kit-lite/internal/domain"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
-
-type UserModel struct {
-	ID           uuid.UUID   `gorm:"type:uuid;primaryKey"`
-	Email        string      `gorm:"size:255;uniqueIndex;not null"`
-	PasswordHash string      `gorm:"column:password_hash;not null"`
-	Name         string      `gorm:"size:255;not null"`
-	IsActive     bool        `gorm:"column:is_active;not null"`
-	Roles        []RoleModel `gorm:"many2many:user_roles;foreignKey:ID;joinForeignKey:UserID;References:ID;joinReferences:RoleID"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-}
-
-func (UserModel) TableName() string { return "users" }
-
-type RoleModel struct {
-	ID   uint16 `gorm:"primaryKey"`
-	Name string `gorm:"size:50;uniqueIndex;not null"`
-}
-
-func (RoleModel) TableName() string { return "roles" }
 
 type UserRepository struct {
 	db *gorm.DB
@@ -47,13 +26,13 @@ func (r *UserRepository) CreateUserWithRole(
 	roleName string,
 ) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var role RoleModel
+		var role domain.RoleModel
 		if err := tx.Where("name = ?", roleName).First(&role).Error; err != nil {
 			return err
 		}
 
 		model := userToModel(user)
-		model.Roles = []RoleModel{role}
+		model.Roles = []domain.RoleModel{role}
 
 		if err := tx.Create(&model).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -69,7 +48,7 @@ func (r *UserRepository) FindUserByID(
 	ctx context.Context,
 	id uuid.UUID,
 ) (*domain.User, error) {
-	var model UserModel
+	var model domain.UserModel
 	err := r.db.WithContext(ctx).
 		Preload("Roles").
 		First(&model, "id = ?", id).
@@ -87,7 +66,7 @@ func (r *UserRepository) FindUserByEmail(
 	ctx context.Context,
 	email string,
 ) (*domain.User, error) {
-	var model UserModel
+	var model domain.UserModel
 	err := r.db.WithContext(ctx).
 		Preload("Roles").
 		First(&model, "email = ?", email).
@@ -105,7 +84,7 @@ func (r *UserRepository) ListUsers(
 	ctx context.Context,
 	opts usecase.ListUsersOptions,
 ) ([]domain.User, int64, error) {
-	query := r.db.WithContext(ctx).Model(&UserModel{})
+	query := r.db.WithContext(ctx).Model(&domain.UserModel{})
 
 	if opts.Search != "" {
 		search := "%" + opts.Search + "%"
@@ -137,7 +116,7 @@ func (r *UserRepository) ListUsers(
 		order = "ASC"
 	}
 
-	var models []UserModel
+	var models []domain.UserModel
 	err := query.
 		Preload("Roles").
 		Order(fmt.Sprintf("%s %s", sortColumn, order)).
@@ -156,8 +135,8 @@ func (r *UserRepository) ListUsers(
 	return users, total, nil
 }
 
-func userToModel(user *domain.User) UserModel {
-	return UserModel{
+func userToModel(user *domain.User) domain.UserModel {
+	return domain.UserModel{
 		ID:           user.ID,
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
@@ -168,7 +147,7 @@ func userToModel(user *domain.User) UserModel {
 	}
 }
 
-func modelToUser(model *UserModel) *domain.User {
+func modelToUser(model *domain.UserModel) *domain.User {
 	roles := make([]domain.Role, 0, len(model.Roles))
 	for _, role := range model.Roles {
 		roles = append(roles, domain.Role{ID: role.ID, Name: role.Name})

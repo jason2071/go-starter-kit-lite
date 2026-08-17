@@ -4,17 +4,9 @@ import (
 	"log/slog"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
-
-const authenticatedUserContextKey = "auth_user"
-
-type AuthenticatedUser struct {
-	ID    uuid.UUID
-	Roles []string
-}
 
 type Dependencies struct {
 	Ready          func() error

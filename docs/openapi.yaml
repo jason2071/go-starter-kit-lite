@@ -2,29 +2,47 @@ openapi: 3.0.3
 info:
   title: Go Starter Kit Lite API
   version: 1.0.0
+  description: REST API for authentication and user administration.
 servers:
   - url: http://localhost:8080
+tags:
+  - name: System
+  - name: Authentication
+  - name: Users
 
 paths:
   /healthz:
     get:
+      tags: [System]
       summary: Health check
       responses:
         "200":
-          description: OK
-
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
   /readyz:
     get:
+      tags: [System]
       summary: Readiness check
       responses:
         "200":
-          description: Ready
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
         "503":
-          description: Not ready
-
+          description: Database is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
   /api/v1/auth/register:
     post:
-      summary: Register user
+      tags: [Authentication]
+      summary: Register a user
       requestBody:
         required: true
         content:
@@ -33,72 +51,118 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
-          description: Created
-
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponseEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
   /api/v1/auth/login:
     post:
-      summary: Login user
+      tags: [Authentication]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: OK
-
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponseEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: User account is disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/refresh:
     post:
-      summary: Refresh token
+      tags: [Authentication]
+      summary: Refresh an access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
       responses:
         "200":
-          description: OK
-
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPairEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
   /api/v1/auth/logout:
     post:
-      summary: Logout user
+      tags: [Authentication]
+      summary: Revoke a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
       responses:
         "204":
-          description: No content
-
+          description: Logged out
+        "400":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/auth/me:
     get:
-      summary: Current user
+      tags: [Authentication]
+      summary: Get the current user
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: OK
-
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
   /api/v1/users:
     get:
+      tags: [Users]
       summary: List users
+      description: Requires the `admin` role.
       security:
         - bearerAuth: []
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-        - in: query
-          name: search
-          schema:
-            type: string
-        - in: query
-          name: is_active
-          schema:
-            type: boolean
-        - in: query
-          name: sort
-          schema:
-            type: string
-        - in: query
-          name: order
-          schema:
-            type: string
-            enum: [asc, desc]
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/IsActive"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
       responses:
         "200":
-          description: OK
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListEnvelope"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
 
 components:
   securitySchemes:
@@ -106,17 +170,132 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: page_size
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    Search:
+      name: search
+      in: query
+      schema: {type: string}
+    IsActive:
+      name: is_active
+      in: query
+      schema: {type: boolean}
+    Sort:
+      name: sort
+      in: query
+      schema: {type: string, enum: [created_at, updated_at, email, name], default: created_at}
+    Order:
+      name: order
+      in: query
+      schema: {type: string, enum: [asc, desc], default: desc}
+  responses:
+    ValidationError:
+      description: Invalid request data
+      content: {application/json: {schema: {$ref: "#/components/schemas/ErrorResponse"}}}
+    UnauthorizedError:
+      description: Authentication failed or token is invalid
+      content: {application/json: {schema: {$ref: "#/components/schemas/ErrorResponse"}}}
+    ForbiddenError:
+      description: Insufficient permissions
+      content: {application/json: {schema: {$ref: "#/components/schemas/ErrorResponse"}}}
+    ConflictError:
+      description: Resource already exists
+      content: {application/json: {schema: {$ref: "#/components/schemas/ErrorResponse"}}}
   schemas:
     RegisterRequest:
       type: object
       required: [email, password, name]
       properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          minLength: 8
-        name:
-          type: string
+        email: {type: string, format: email, example: user@example.com}
+        password: {type: string, format: password, minLength: 8}
+        name: {type: string, minLength: 2, example: Jane Doe}
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: {type: string, format: email, example: user@example.com}
+        password: {type: string, format: password}
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: {type: string}
+    User:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        name: {type: string}
+        is_active: {type: boolean}
+        roles: {type: array, items: {type: string}}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    TokenPair:
+      type: object
+      properties:
+        access_token: {type: string}
+        refresh_token: {type: string}
+        token_type: {type: string, example: Bearer}
+        expires_in: {type: integer, format: int64}
+    PageMeta:
+      type: object
+      properties:
+        page: {type: integer}
+        page_size: {type: integer}
+        total: {type: integer, format: int64}
+        total_pages: {type: integer, format: int64}
+    AuthResponse:
+      type: object
+      properties:
+        user: {$ref: "#/components/schemas/User"}
+        tokens: {$ref: "#/components/schemas/TokenPair"}
+    UserListResponse:
+      type: object
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/User"}}
+        meta: {$ref: "#/components/schemas/PageMeta"}
+    HealthResponse:
+      type: object
+      properties:
+        status: {type: string, example: ok}
+    ReadyResponse:
+      type: object
+      properties:
+        status: {type: string, enum: [ready, not_ready]}
+    ErrorResponse:
+      type: object
+      properties:
+        success: {type: boolean, example: false}
+        error:
+          type: object
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details: {nullable: true}
+    AuthResponseEnvelope:
+      type: object
+      properties:
+        success: {type: boolean, example: true}
+        data: {$ref: "#/components/schemas/AuthResponse"}
+    TokenPairEnvelope:
+      type: object
+      properties:
+        success: {type: boolean, example: true}
+        data: {$ref: "#/components/schemas/TokenPair"}
+    UserEnvelope:
+      type: object
+      properties:
+        success: {type: boolean, example: true}
+        data: {$ref: "#/components/schemas/User"}
+    UserListEnvelope:
+      type: object
+      properties:
+        success: {type: boolean, example: true}
+        data: {$ref: "#/components/schemas/UserListResponse"}

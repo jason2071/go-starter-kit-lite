@@ -25,30 +25,39 @@ This refactored edition keeps the original API behavior but uses explicit file a
 ## Structure
 
 ```text
-cmd/api/main.go
+cmd/api/
+├── main.go                 # composition root and dependency wiring
+└── routes.go               # HTTP endpoint registration
+
+docs/
+├── openapi.yaml            # OpenAPI specification
+└── swagger-ui.html         # Swagger UI page
 
 internal/
+├── config/
+│   └── config.go           # Fiber, CORS and request-ID configuration
 ├── domain/
 │   ├── user.go
 │   └── refresh_token.go
 ├── usecase/
 │   ├── auth_service.go
+│   ├── auth_types.go
 │   ├── user_service.go
-│   ├── user_repository.go
-│   ├── refresh_token_repository.go
-│   ├── security.go
+│   ├── user_types.go
 │   └── error.go
 ├── repository/
 │   ├── user_repository.go
 │   └── refresh_token_repository.go
 ├── handler/http/
-│   ├── dependencies.go
+│   ├── app.go
 │   ├── auth_handler.go
-│   ├── user_handler.go
-│   ├── system_handler.go
-│   ├── middleware.go
+│   ├── dependencies.go
 │   ├── response.go
-│   └── routes.go
+│   ├── user_handler.go
+│   └── system_handler.go
+├── middleware/
+│   ├── auth.go
+│   └── request_logger.go
 ├── platform/
 │   ├── config.go
 │   ├── database.go
@@ -90,6 +99,7 @@ GET  /api/v1/users
 GET  /healthz
 GET  /readyz
 GET  /docs
+GET  /openapi.yaml
 ```
 
 ## Adding a new CRUD feature
@@ -98,10 +108,10 @@ For `Category`, follow the same naming pattern:
 
 ```text
 internal/domain/category.go
-internal/usecase/category_repository.go
 internal/usecase/category_service.go
+internal/usecase/category_types.go
 internal/repository/category_repository.go
 internal/handler/http/category_handler.go
 ```
 
-Then wire the repository/service in `cmd/api/main.go` and register routes in `internal/handler/http/routes.go`.
+Then wire the repository/service in `cmd/api/main.go` and register routes in `cmd/api/routes.go`.

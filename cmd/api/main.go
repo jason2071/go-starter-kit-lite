@@ -57,14 +57,16 @@ func main() {
 	)
 	userService := usecase.NewUserService(userRepository)
 
-	app := httpHandler.NewApp(httpHandler.Dependencies{
+	dependencies := httpHandler.Dependencies{
 		Ready:          sqlDB.Ping,
 		AuthService:    authService,
 		UserService:    userService,
 		TokenManager:   security,
 		Logger:         logger,
 		AllowedOrigins: cfg.AllowedOrigin,
-	})
+	}
+	app := httpHandler.NewApp(dependencies)
+	registerRoutes(app, httpHandler.NewHandler(dependencies), security)
 
 	listenErr := make(chan error, 1)
 	go func() {
