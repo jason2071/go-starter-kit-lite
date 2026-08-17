@@ -3,8 +3,8 @@ package shared
 import "testing"
 
 func TestNormalizePage(t *testing.T) {
-	p := NormalizePage(0, 999)
-	if p.Page != 1 || p.PageSize != MaxPageSize {
-		t.Fatalf("unexpected page: %+v", p)
+	page := NormalizePage(0, 500)
+	if page.Page != 1 || page.PageSize != 100 {
+		t.Fatalf("unexpected page: %+v", page)
 	}
 }

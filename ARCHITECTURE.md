@@ -3,21 +3,44 @@
 Dependency direction:
 
 ```text
-Handler (Fiber)       Repository (GORM)      Platform
-       \                    |                  /
-        \                   v                 /
-                  Usecase / Ports
-                        |
-                        v
-                      Domain
+Handler (Fiber)  --->  Usecase / Ports  --->  Domain
+                           ^
+                           |
+                    Repository (GORM)
+
+Platform provides config, database, logging and security implementations.
+cmd/api/main.go wires concrete implementations together.
 ```
 
-Rules:
-- `domain` contains pure entities only; no Fiber/GORM tags.
-- `usecase` contains business logic and interfaces (ports).
-- `repository` implements persistence ports using GORM/PostgreSQL.
-- `handler/http` owns HTTP parsing, handlers, routes, middleware and status codes.
-- `platform` owns config, DB setup, logger, JWT/bcrypt/refresh-token primitives.
-- `cmd/api/main.go` is the composition root (dependency wiring), so no separate bootstrap package is needed.
+## Packages
 
-Lite means fewer packages/files, not weaker dependency boundaries.
+- `internal/domain` — pure business entities. No Fiber/GORM tags.
+- `internal/usecase` — application services and repository/security interfaces.
+- `internal/repository` — PostgreSQL/GORM implementations of repository interfaces.
+- `internal/handler/http` — HTTP handlers, routes, middleware, validation and responses.
+- `internal/platform` — config, database, logger and JWT/password implementation.
+- `internal/shared` — small reusable primitives such as pagination.
+- `cmd/api/main.go` — composition root / dependency injection.
+
+## Naming rule
+
+Names intentionally include the resource when ambiguity is possible:
+
+```text
+FindUserByID
+ListUsers
+CreateRefreshToken
+RevokeRefreshToken
+RegisterUser
+GetCurrentUser
+```
+
+This makes a new feature such as Category predictable:
+
+```text
+domain/category.go
+usecase/category_service.go
+usecase/category_repository.go
+repository/category_repository.go
+handler/http/category_handler.go
+```

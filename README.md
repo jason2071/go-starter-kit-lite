@@ -1,39 +1,61 @@
 # Go Fiber Clean Architecture Lite
 
-A compact production-ready starter using **Go + Fiber v2 + GORM + PostgreSQL** with standard Clean Architecture boundaries, but less boilerplate than the full/classic version.
+Compact starter using **Go + Fiber v2 + GORM + PostgreSQL**.
+
+This refactored edition keeps the original API behavior but uses explicit file and function names so the codebase is easier to follow and extend.
 
 ## Included
 
 - Fiber v2
 - GORM + PostgreSQL
-- golang-migrate compatible SQL migrations
+- golang-migrate SQL migrations
 - validator
 - JWT access tokens
 - rotating refresh tokens stored as SHA-256 hashes
 - RBAC (`user`, `admin`)
-- `slog` JSON structured logging
+- `slog` structured logging
 - request ID
 - pagination / search / filter / whitelist sort
 - graceful shutdown
 - Docker / Docker Compose
 - Air
-- Makefile
 - unit + integration test examples
 - OpenAPI + Swagger UI
 
 ## Structure
 
 ```text
-cmd/api/main.go                # composition root / DI
-internal/domain/               # pure entities
-internal/usecase/              # business logic + ports
-internal/repository/           # GORM/Postgres implementation
-internal/handler/http/         # Fiber handlers, routes, middleware
-internal/platform/             # config/db/logger/security
-internal/shared/               # small reusable primitives
-migrations/
-docs/
-integration/
+cmd/api/main.go
+
+internal/
+├── domain/
+│   ├── user.go
+│   └── refresh_token.go
+├── usecase/
+│   ├── auth_service.go
+│   ├── user_service.go
+│   ├── user_repository.go
+│   ├── refresh_token_repository.go
+│   ├── security.go
+│   └── error.go
+├── repository/
+│   ├── user_repository.go
+│   └── refresh_token_repository.go
+├── handler/http/
+│   ├── dependencies.go
+│   ├── auth_handler.go
+│   ├── user_handler.go
+│   ├── system_handler.go
+│   ├── middleware.go
+│   ├── response.go
+│   └── routes.go
+├── platform/
+│   ├── config.go
+│   ├── database.go
+│   ├── logger.go
+│   └── security.go
+└── shared/
+    └── pagination.go
 ```
 
 ## Quick start
@@ -51,16 +73,9 @@ docker compose up --build
 ## Local development
 
 ```bash
-make deps
+go mod tidy
 make migrate-up
 make dev
-```
-
-Install tools if needed:
-
-```bash
-go install github.com/air-verse/air@latest
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 ```
 
 ## Endpoints
@@ -71,22 +86,22 @@ POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 GET  /api/v1/auth/me
-GET  /api/v1/users        # admin
+GET  /api/v1/users
 GET  /healthz
 GET  /readyz
 GET  /docs
 ```
 
-## Promote a user to admin
+## Adding a new CRUD feature
 
-After registering a user, run:
+For `Category`, follow the same naming pattern:
 
-```sql
-INSERT INTO user_roles (user_id, role_id)
-SELECT 'USER_UUID', id FROM roles WHERE name = 'admin'
-ON CONFLICT DO NOTHING;
+```text
+internal/domain/category.go
+internal/usecase/category_repository.go
+internal/usecase/category_service.go
+internal/repository/category_repository.go
+internal/handler/http/category_handler.go
 ```
 
-## Why Lite?
-
-The HTTP package is the handler layer: it owns routes, request parsing, validation, middleware, and HTTP responses. The use-case layer stays independent of Fiber, while repositories and platform packages remain replaceable infrastructure adapters.
+Then wire the repository/service in `cmd/api/main.go` and register routes in `internal/handler/http/routes.go`.
