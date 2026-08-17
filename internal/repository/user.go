@@ -31,10 +31,10 @@ func (r *UserRepository) CreateUserWithRole(
 			return err
 		}
 
-		model := userToModel(user)
-		model.Roles = []model.RoleModel{role}
+		userModel := userToModel(user)
+		userModel.Roles = []model.RoleModel{role}
 
-		if err := tx.Create(&model).Error; err != nil {
+		if err := tx.Create(&userModel).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return domain.ErrEmailExists
 			}
