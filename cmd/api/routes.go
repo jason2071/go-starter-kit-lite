@@ -37,24 +37,22 @@ func registerRoutes(
 		dependencies.Config.RefreshTTL,
 	)
 	userService := usecase.NewUserService(userRepository)
-	handler := httpHandler.NewHandler(httpHandler.Dependencies{
-		Ready:       dependencies.Ready,
-		AuthService: authService,
-		UserService: userService,
-	})
+	authHandler := httpHandler.NewAuthHandler(authService)
+	userHandler := httpHandler.NewUserHandler(userService)
+	systemHandler := httpHandler.NewSystemHandler(dependencies.Ready)
 
 	api := app.Group("/api/v1")
-	api.Post("/auth/register", handler.RegisterUser)
-	api.Post("/auth/login", handler.LoginUser)
-	api.Post("/auth/refresh", handler.RefreshToken)
-	api.Post("/auth/logout", handler.LogoutUser)
+	api.Post("/auth/register", authHandler.RegisterUser)
+	api.Post("/auth/login", authHandler.LoginUser)
+	api.Post("/auth/refresh", authHandler.RefreshToken)
+	api.Post("/auth/logout", authHandler.LogoutUser)
 
 	protected := api.Group("", middleware.Auth(security))
-	protected.Get("/auth/me", handler.GetCurrentUser)
-	protected.Get("/users", middleware.RequireRole("admin"), handler.ListUsers)
+	protected.Get("/auth/me", authHandler.GetCurrentUser)
+	protected.Get("/users", middleware.RequireRole("admin"), userHandler.ListUsers)
 
-	app.Get("/healthz", handler.Health)
-	app.Get("/readyz", handler.Ready)
+	app.Get("/healthz", systemHandler.Health)
+	app.Get("/readyz", systemHandler.Ready)
 	app.Get("/openapi.yaml", func(c *fiber.Ctx) error {
 		return c.SendFile("./docs/openapi.yaml")
 	})

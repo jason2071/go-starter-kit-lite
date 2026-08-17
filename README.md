@@ -56,7 +56,6 @@ internal/
 │   └── refresh_token.go      # GORM mappings
 ├── handler/
 │   ├── auth.go
-│   ├── dependencies.go
 │   ├── response.go
 │   ├── user.go
 │   └── system.go

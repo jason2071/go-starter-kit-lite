@@ -1,13 +1,26 @@
 package handler
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/jason2071/go-starter-kit-lite/internal/middleware"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
 
-func (h *Handler) RegisterUser(c *fiber.Ctx) error {
+type AuthHandler struct {
+	authService *usecase.AuthService
+	validator   *validator.Validate
+}
+
+func NewAuthHandler(authService *usecase.AuthService) *AuthHandler {
+	return &AuthHandler{
+		authService: authService,
+		validator:   validator.New(),
+	}
+}
+
+func (h *AuthHandler) RegisterUser(c *fiber.Ctx) error {
 	var request usecase.RegisterRequest
 	if err := parseAndValidate(c, h.validator, &request); err != nil {
 		return err
@@ -23,7 +36,7 @@ func (h *Handler) RegisterUser(c *fiber.Ctx) error {
 	)
 }
 
-func (h *Handler) LoginUser(c *fiber.Ctx) error {
+func (h *AuthHandler) LoginUser(c *fiber.Ctx) error {
 	var request usecase.LoginRequest
 	if err := parseAndValidate(c, h.validator, &request); err != nil {
 		return err
@@ -37,7 +50,7 @@ func (h *Handler) LoginUser(c *fiber.Ctx) error {
 	return c.JSON(dataResponse{Success: true, Data: response})
 }
 
-func (h *Handler) RefreshToken(c *fiber.Ctx) error {
+func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	var request usecase.RefreshTokenRequest
 	if err := parseAndValidate(c, h.validator, &request); err != nil {
 		return err
@@ -54,7 +67,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	return c.JSON(dataResponse{Success: true, Data: response})
 }
 
-func (h *Handler) LogoutUser(c *fiber.Ctx) error {
+func (h *AuthHandler) LogoutUser(c *fiber.Ctx) error {
 	var request usecase.RefreshTokenRequest
 	if err := parseAndValidate(c, h.validator, &request); err != nil {
 		return err
@@ -70,7 +83,7 @@ func (h *Handler) LogoutUser(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
+func (h *AuthHandler) GetCurrentUser(c *fiber.Ctx) error {
 	response, err := h.authService.GetCurrentUser(
 		c.UserContext(),
 		middleware.CurrentUser(c).ID,

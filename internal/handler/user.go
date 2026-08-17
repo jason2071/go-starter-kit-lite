@@ -8,7 +8,15 @@ import (
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
 )
 
-func (h *Handler) ListUsers(c *fiber.Ctx) error {
+type UserHandler struct {
+	userService *usecase.UserService
+}
+
+func NewUserHandler(userService *usecase.UserService) *UserHandler {
+	return &UserHandler{userService: userService}
+}
+
+func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "20"))
 
