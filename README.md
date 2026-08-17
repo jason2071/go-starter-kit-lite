@@ -28,7 +28,7 @@ cmd/api/main.go                # composition root / DI
 internal/domain/               # pure entities
 internal/usecase/              # business logic + ports
 internal/repository/           # GORM/Postgres implementation
-internal/delivery/http/        # Fiber handlers/routes/middleware
+internal/handler/http/         # Fiber handlers, routes, middleware
 internal/platform/             # config/db/logger/security
 internal/shared/               # small reusable primitives
 migrations/
@@ -89,4 +89,4 @@ ON CONFLICT DO NOTHING;
 
 ## Why Lite?
 
-The full standard version separates more concerns into individual packages. This Lite version keeps the same inward dependency direction while merging related outer-layer code to reduce navigation and ceremony. It is a good default for small-to-medium APIs and can be split further as the project grows.
+The HTTP package is the handler layer: it owns routes, request parsing, validation, middleware, and HTTP responses. The use-case layer stays independent of Fiber, while repositories and platform packages remain replaceable infrastructure adapters.

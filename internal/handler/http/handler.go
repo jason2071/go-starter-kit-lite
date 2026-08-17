@@ -9,10 +9,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
-	"github.com/gofiber/fiber/v2/utils"
 	"github.com/google/uuid"
 
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
@@ -48,100 +44,101 @@ type dataResponse struct {
 	Data    any  `json:"data,omitempty"`
 }
 
-func NewApp(dep Dependencies) *fiber.App {
-	app := fiber.New(fiber.Config{AppName: "Go Fiber Clean Lite", DisableStartupMessage: true, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second, BodyLimit: 4 * 1024 * 1024, ErrorHandler: errorHandler(dep.Logger)})
-	app.Use(recover.New())
-	app.Use(requestid.New(requestid.Config{Header: fiber.HeaderXRequestID, Generator: utils.UUIDv4}))
-	app.Use(cors.New(cors.Config{AllowOrigins: dep.AllowedOrigins, AllowHeaders: "Origin, Content-Type, Accept, Authorization, X-Request-ID", AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"}))
-	app.Use(requestLogger(dep.Logger))
-
-	v := validator.New()
-	api := app.Group("/api/v1")
-	api.Post("/auth/register", func(c *fiber.Ctx) error {
-		var req usecase.RegisterRequest
-		if err := parseAndValidate(c, v, &req); err != nil {
-			return err
-		}
-		out, err := dep.Auth.Register(c.UserContext(), req)
-		if err != nil {
-			return err
-		}
-		return c.Status(fiber.StatusCreated).JSON(dataResponse{true, out})
-	})
-	api.Post("/auth/login", func(c *fiber.Ctx) error {
-		var req usecase.LoginRequest
-		if err := parseAndValidate(c, v, &req); err != nil {
-			return err
-		}
-		out, err := dep.Auth.Login(c.UserContext(), req)
-		if err != nil {
-			return err
-		}
-		return c.JSON(dataResponse{true, out})
-	})
-	api.Post("/auth/refresh", func(c *fiber.Ctx) error {
-		var req usecase.RefreshRequest
-		if err := parseAndValidate(c, v, &req); err != nil {
-			return err
-		}
-		out, err := dep.Auth.Refresh(c.UserContext(), req.RefreshToken)
-		if err != nil {
-			return err
-		}
-		return c.JSON(dataResponse{true, out})
-	})
-	api.Post("/auth/logout", func(c *fiber.Ctx) error {
-		var req usecase.RefreshRequest
-		if err := parseAndValidate(c, v, &req); err != nil {
-			return err
-		}
-		if err := dep.Auth.Logout(c.UserContext(), req.RefreshToken); err != nil {
-			return err
-		}
-		return c.SendStatus(fiber.StatusNoContent)
-	})
-
-	protected := api.Group("", authMiddleware(dep.Tokens))
-	protected.Get("/auth/me", func(c *fiber.Ctx) error {
-		u := currentUser(c)
-		out, err := dep.Auth.Me(c.UserContext(), u.ID)
-		if err != nil {
-			return err
-		}
-		return c.JSON(dataResponse{true, out})
-	})
-
-	protected.Get("/users", requireRole("admin"), func(c *fiber.Ctx) error {
-		page, _ := strconv.Atoi(c.Query("page", "1"))
-		size, _ := strconv.Atoi(c.Query("page_size", "20"))
-		var active *bool
-		if raw := c.Query("is_active"); raw != "" {
-			v, err := strconv.ParseBool(raw)
-			if err != nil {
-				return usecase.NewError(usecase.ErrValidation, "INVALID_FILTER", "is_active must be boolean")
-			}
-			active = &v
-		}
-		out, err := dep.Users.List(c.UserContext(), usecase.UserListRequest{Page: page, PageSize: size, Search: c.Query("search"), IsActive: active, Sort: c.Query("sort", "created_at"), Order: c.Query("order", "desc")})
-		if err != nil {
-			return err
-		}
-		return c.JSON(dataResponse{true, out})
-	})
-
-	app.Get("/healthz", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok"}) })
-	app.Get("/readyz", func(c *fiber.Ctx) error {
-		if dep.Ready != nil && dep.Ready() != nil {
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"status": "not_ready"})
-		}
-		return c.JSON(fiber.Map{"status": "ready"})
-	})
-	app.Get("/openapi.yaml", func(c *fiber.Ctx) error { return c.SendFile("./docs/openapi.yaml") })
-	app.Get("/docs", func(c *fiber.Ctx) error { return c.Type("html").SendString(swaggerHTML) })
-	return app
+// Handler adapts HTTP requests to use cases. It does not register routes.
+type Handler struct {
+	ready     func() error
+	auth      *usecase.AuthService
+	users     *usecase.UserService
+	validator *validator.Validate
 }
 
-func authMiddleware(tokens usecase.TokenManager) fiber.Handler {
+func NewHandler(dep Dependencies) *Handler {
+	return &Handler{ready: dep.Ready, auth: dep.Auth, users: dep.Users, validator: validator.New()}
+}
+
+func (h *Handler) Register(c *fiber.Ctx) error {
+	var req usecase.RegisterRequest
+	if err := parseAndValidate(c, h.validator, &req); err != nil {
+		return err
+	}
+	out, err := h.auth.Register(c.UserContext(), req)
+	if err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(dataResponse{true, out})
+}
+
+func (h *Handler) Login(c *fiber.Ctx) error {
+	var req usecase.LoginRequest
+	if err := parseAndValidate(c, h.validator, &req); err != nil {
+		return err
+	}
+	out, err := h.auth.Login(c.UserContext(), req)
+	if err != nil {
+		return err
+	}
+	return c.JSON(dataResponse{true, out})
+}
+
+func (h *Handler) Refresh(c *fiber.Ctx) error {
+	var req usecase.RefreshRequest
+	if err := parseAndValidate(c, h.validator, &req); err != nil {
+		return err
+	}
+	out, err := h.auth.Refresh(c.UserContext(), req.RefreshToken)
+	if err != nil {
+		return err
+	}
+	return c.JSON(dataResponse{true, out})
+}
+
+func (h *Handler) Logout(c *fiber.Ctx) error {
+	var req usecase.RefreshRequest
+	if err := parseAndValidate(c, h.validator, &req); err != nil {
+		return err
+	}
+	if err := h.auth.Logout(c.UserContext(), req.RefreshToken); err != nil {
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) Me(c *fiber.Ctx) error {
+	out, err := h.auth.Me(c.UserContext(), currentUser(c).ID)
+	if err != nil {
+		return err
+	}
+	return c.JSON(dataResponse{true, out})
+}
+
+func (h *Handler) ListUsers(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	size, _ := strconv.Atoi(c.Query("page_size", "20"))
+	var active *bool
+	if raw := c.Query("is_active"); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			return usecase.NewError(usecase.ErrValidation, "INVALID_FILTER", "is_active must be boolean")
+		}
+		active = &value
+	}
+	out, err := h.users.List(c.UserContext(), usecase.UserListRequest{Page: page, PageSize: size, Search: c.Query("search"), IsActive: active, Sort: c.Query("sort", "created_at"), Order: c.Query("order", "desc")})
+	if err != nil {
+		return err
+	}
+	return c.JSON(dataResponse{true, out})
+}
+
+func (h *Handler) Health(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok"}) }
+
+func (h *Handler) Ready(c *fiber.Ctx) error {
+	if h.ready != nil && h.ready() != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"status": "not_ready"})
+	}
+	return c.JSON(fiber.Map{"status": "ready"})
+}
+
+func authMiddleware(tokens TokenParser) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		raw := strings.TrimSpace(c.Get(fiber.HeaderAuthorization))
 		if !strings.HasPrefix(raw, "Bearer ") {

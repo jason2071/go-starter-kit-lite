@@ -9,7 +9,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	httpdelivery "github.com/jason2071/go-starter-kit-lite/internal/delivery/http"
+	httpHandler "github.com/jason2071/go-starter-kit-lite/internal/handler/http"
 	"github.com/jason2071/go-starter-kit-lite/internal/platform"
 	"github.com/jason2071/go-starter-kit-lite/internal/repository"
 	"github.com/jason2071/go-starter-kit-lite/internal/usecase"
@@ -36,7 +36,7 @@ func main() {
 	security := platform.NewSecurity(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTTL)
 	authService := usecase.NewAuthService(repo, repo, security, security, cfg.RefreshTTL)
 	userService := usecase.NewUserService(repo)
-	app := httpdelivery.NewApp(httpdelivery.Dependencies{Ready: sqlDB.Ping, Auth: authService, Users: userService, Tokens: security, Logger: logger, AllowedOrigins: cfg.AllowedOrigin})
+	app := httpHandler.NewApp(httpHandler.Dependencies{Ready: sqlDB.Ping, Auth: authService, Users: userService, Tokens: security, Logger: logger, AllowedOrigins: cfg.AllowedOrigin})
 
 	listenErr := make(chan error, 1)
 	go func() {
