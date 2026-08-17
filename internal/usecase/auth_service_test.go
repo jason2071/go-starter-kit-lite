@@ -11,11 +11,11 @@ import (
 	"github.com/jason2071/go-starter-kit-lite/internal/domain"
 )
 
-type fakeUserRepository struct {
+type fakeUserStore struct {
 	users map[string]*domain.User
 }
 
-func (f *fakeUserRepository) CreateUserWithRole(
+func (f *fakeUserStore) CreateUserWithRole(
 	_ context.Context,
 	user *domain.User,
 	_ string,
@@ -25,7 +25,7 @@ func (f *fakeUserRepository) CreateUserWithRole(
 	return nil
 }
 
-func (f *fakeUserRepository) FindUserByID(
+func (f *fakeUserStore) FindUserByID(
 	_ context.Context,
 	id uuid.UUID,
 ) (*domain.User, error) {
@@ -37,7 +37,7 @@ func (f *fakeUserRepository) FindUserByID(
 	return nil, ErrUserNotFound
 }
 
-func (f *fakeUserRepository) FindUserByEmail(
+func (f *fakeUserStore) FindUserByEmail(
 	_ context.Context,
 	email string,
 ) (*domain.User, error) {
@@ -48,18 +48,18 @@ func (f *fakeUserRepository) FindUserByEmail(
 	return user, nil
 }
 
-func (f *fakeUserRepository) ListUsers(
+func (f *fakeUserStore) ListUsers(
 	context.Context,
 	ListUsersOptions,
 ) ([]domain.User, int64, error) {
 	return nil, 0, nil
 }
 
-type fakeRefreshTokenRepository struct {
+type fakeRefreshTokenStore struct {
 	tokens map[string]*domain.RefreshToken
 }
 
-func (f *fakeRefreshTokenRepository) CreateRefreshToken(
+func (f *fakeRefreshTokenStore) CreateRefreshToken(
 	_ context.Context,
 	token *domain.RefreshToken,
 ) error {
@@ -67,7 +67,7 @@ func (f *fakeRefreshTokenRepository) CreateRefreshToken(
 	return nil
 }
 
-func (f *fakeRefreshTokenRepository) FindActiveRefreshTokenByHash(
+func (f *fakeRefreshTokenStore) FindActiveRefreshTokenByHash(
 	_ context.Context,
 	hash string,
 ) (*domain.RefreshToken, error) {
@@ -78,7 +78,7 @@ func (f *fakeRefreshTokenRepository) FindActiveRefreshTokenByHash(
 	return token, nil
 }
 
-func (f *fakeRefreshTokenRepository) RotateRefreshToken(
+func (f *fakeRefreshTokenStore) RotateRefreshToken(
 	context.Context,
 	string,
 	*domain.RefreshToken,
@@ -86,7 +86,7 @@ func (f *fakeRefreshTokenRepository) RotateRefreshToken(
 	return nil
 }
 
-func (f *fakeRefreshTokenRepository) RevokeRefreshToken(
+func (f *fakeRefreshTokenStore) RevokeRefreshToken(
 	context.Context,
 	string,
 ) error {
@@ -131,17 +131,17 @@ func (fakeSecurity) Compare(hash, password string) error {
 }
 
 func TestRegisterUser(t *testing.T) {
-	userRepository := &fakeUserRepository{
+	userStore := &fakeUserStore{
 		users: map[string]*domain.User{},
 	}
-	refreshTokenRepository := &fakeRefreshTokenRepository{
+	refreshTokenStore := &fakeRefreshTokenStore{
 		tokens: map[string]*domain.RefreshToken{},
 	}
 	security := fakeSecurity{}
 
 	service := NewAuthService(
-		userRepository,
-		refreshTokenRepository,
+		userStore,
+		refreshTokenStore,
 		security,
 		security,
 		24*time.Hour,

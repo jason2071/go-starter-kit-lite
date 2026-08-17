@@ -11,61 +11,34 @@ import (
 	"github.com/jason2071/go-starter-kit-lite/internal/domain"
 )
 
-type RegisterRequest struct {
-	Email    string `json:"email" validate:"required,email,max=255"`
-	Password string `json:"password" validate:"required,min=8,max=72"`
-	Name     string `json:"name" validate:"required,min=2,max=255"`
-}
-
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email,max=255"`
-	Password string `json:"password" validate:"required,max=72"`
-}
-
-type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
-}
-
-type TokenPair struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int64  `json:"expires_in"`
-}
-
-type AuthResponse struct {
-	User   UserResponse `json:"user"`
-	Tokens TokenPair    `json:"tokens"`
-}
-
 type AuthService struct {
-	userRepository         UserRepository
-	refreshTokenRepository RefreshTokenRepository
-	tokenManager           TokenManager
-	passwordHasher         PasswordHasher
-	refreshTokenTTL        time.Duration
+	userStore         UserStore
+	refreshTokenStore RefreshTokenStore
+	tokenManager      TokenManager
+	passwordHasher    PasswordHasher
+	refreshTokenTTL   time.Duration
 }
 
 func NewAuthService(
-	userRepository UserRepository,
-	refreshTokenRepository RefreshTokenRepository,
+	userStore UserStore,
+	refreshTokenStore RefreshTokenStore,
 	tokenManager TokenManager,
 	passwordHasher PasswordHasher,
 	refreshTokenTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		userRepository:         userRepository,
-		refreshTokenRepository: refreshTokenRepository,
-		tokenManager:           tokenManager,
-		passwordHasher:         passwordHasher,
-		refreshTokenTTL:        refreshTokenTTL,
+		userStore:         userStore,
+		refreshTokenStore: refreshTokenStore,
+		tokenManager:      tokenManager,
+		passwordHasher:    passwordHasher,
+		refreshTokenTTL:   refreshTokenTTL,
 	}
 }
 
 func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
-	if _, err := s.userRepository.FindUserByEmail(ctx, email); err == nil {
+	if _, err := s.userStore.FindUserByEmail(ctx, email); err == nil {
 		return nil, NewError(ErrConflict, "EMAIL_ALREADY_EXISTS", "email already exists")
 	} else if !errors.Is(err, ErrUserNotFound) {
 		return nil, WrapError(ErrInternal, "USER_LOOKUP_FAILED", "failed to check user", err)
@@ -84,14 +57,14 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
 		IsActive:     true,
 	}
 
-	if err := s.userRepository.CreateUserWithRole(ctx, user, "user"); err != nil {
+	if err := s.userStore.CreateUserWithRole(ctx, user, "user"); err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			return nil, NewError(ErrConflict, "EMAIL_ALREADY_EXISTS", "email already exists")
 		}
 		return nil, WrapError(ErrInternal, "USER_CREATE_FAILED", "failed to create user", err)
 	}
 
-	createdUser, err := s.userRepository.FindUserByID(ctx, user.ID)
+	createdUser, err := s.userStore.FindUserByID(ctx, user.ID)
 	if err != nil {
 		return nil, WrapError(ErrInternal, "USER_READ_FAILED", "failed to read created user", err)
 	}
@@ -108,7 +81,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, req RegisterRequest) (*A
 }
 
 func (s *AuthService) LoginUser(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
-	user, err := s.userRepository.FindUserByEmail(
+	user, err := s.userStore.FindUserByEmail(
 		ctx,
 		strings.ToLower(strings.TrimSpace(req.Email)),
 	)
@@ -141,7 +114,7 @@ func (s *AuthService) LoginUser(ctx context.Context, req LoginRequest) (*AuthRes
 func (s *AuthService) RefreshToken(ctx context.Context, rawRefreshToken string) (*TokenPair, error) {
 	oldHash := s.tokenManager.HashRefreshToken(rawRefreshToken)
 
-	storedToken, err := s.refreshTokenRepository.FindActiveRefreshTokenByHash(ctx, oldHash)
+	storedToken, err := s.refreshTokenStore.FindActiveRefreshTokenByHash(ctx, oldHash)
 	if err != nil {
 		if errors.Is(err, ErrRefreshTokenNotFound) {
 			return nil, NewError(ErrUnauthorized, "INVALID_REFRESH_TOKEN", "invalid or expired refresh token")
@@ -149,7 +122,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, rawRefreshToken string) 
 		return nil, WrapError(ErrInternal, "REFRESH_FAILED", "failed to refresh token", err)
 	}
 
-	user, err := s.userRepository.FindUserByID(ctx, storedToken.UserID)
+	user, err := s.userStore.FindUserByID(ctx, storedToken.UserID)
 	if err != nil || user == nil || !user.IsActive {
 		return nil, NewError(ErrUnauthorized, "INVALID_REFRESH_TOKEN", "invalid or expired refresh token")
 	}
@@ -171,7 +144,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, rawRefreshToken string) 
 		ExpiresAt: time.Now().UTC().Add(s.refreshTokenTTL),
 	}
 
-	if err := s.refreshTokenRepository.RotateRefreshToken(ctx, oldHash, nextToken); err != nil {
+	if err := s.refreshTokenStore.RotateRefreshToken(ctx, oldHash, nextToken); err != nil {
 		if errors.Is(err, ErrRefreshTokenUsed) {
 			return nil, NewError(ErrUnauthorized, "INVALID_REFRESH_TOKEN", "refresh token was already used or expired")
 		}
@@ -192,14 +165,14 @@ func (s *AuthService) LogoutUser(ctx context.Context, rawRefreshToken string) er
 	}
 
 	hash := s.tokenManager.HashRefreshToken(rawRefreshToken)
-	if err := s.refreshTokenRepository.RevokeRefreshToken(ctx, hash); err != nil {
+	if err := s.refreshTokenStore.RevokeRefreshToken(ctx, hash); err != nil {
 		return WrapError(ErrInternal, "LOGOUT_FAILED", "failed to logout", err)
 	}
 	return nil
 }
 
 func (s *AuthService) GetCurrentUser(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
-	user, err := s.userRepository.FindUserByID(ctx, userID)
+	user, err := s.userStore.FindUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			return nil, NewError(ErrNotFound, "USER_NOT_FOUND", "user not found")
@@ -229,7 +202,7 @@ func (s *AuthService) createTokenPair(ctx context.Context, user *domain.User) (*
 		ExpiresAt: time.Now().UTC().Add(s.refreshTokenTTL),
 	}
 
-	if err := s.refreshTokenRepository.CreateRefreshToken(ctx, refreshToken); err != nil {
+	if err := s.refreshTokenStore.CreateRefreshToken(ctx, refreshToken); err != nil {
 		return nil, WrapError(ErrInternal, "TOKEN_STORE_FAILED", "failed to store refresh token", err)
 	}
 

@@ -4,48 +4,22 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/jason2071/go-starter-kit-lite/internal/domain"
 	"github.com/jason2071/go-starter-kit-lite/internal/shared"
 )
 
-type UserResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	IsActive  bool      `json:"is_active"`
-	Roles     []string  `json:"roles"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type ListUsersRequest struct {
-	Page     int
-	PageSize int
-	Search   string
-	IsActive *bool
-	Sort     string
-	Order    string
-}
-
-type ListUsersResponse struct {
-	Items []UserResponse  `json:"items"`
-	Meta  shared.PageMeta `json:"meta"`
-}
-
 type UserService struct {
-	userRepository UserRepository
+	userStore UserStore
 }
 
-func NewUserService(userRepository UserRepository) *UserService {
-	return &UserService{userRepository: userRepository}
+func NewUserService(userStore UserStore) *UserService {
+	return &UserService{userStore: userStore}
 }
 
 func (s *UserService) GetUserByID(ctx context.Context, id uuid.UUID) (*UserResponse, error) {
-	user, err := s.userRepository.FindUserByID(ctx, id)
+	user, err := s.userStore.FindUserByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			return nil, NewError(ErrNotFound, "USER_NOT_FOUND", "user not found")
@@ -65,7 +39,7 @@ func (s *UserService) ListUsers(ctx context.Context, req ListUsersRequest) (*Lis
 		order = "desc"
 	}
 
-	users, total, err := s.userRepository.ListUsers(ctx, ListUsersOptions{
+	users, total, err := s.userStore.ListUsers(ctx, ListUsersOptions{
 		Page:     page,
 		Search:   strings.TrimSpace(req.Search),
 		IsActive: req.IsActive,
@@ -85,16 +59,4 @@ func (s *UserService) ListUsers(ctx context.Context, req ListUsersRequest) (*Lis
 		Items: items,
 		Meta:  shared.NewPageMeta(page, total),
 	}, nil
-}
-
-func toUserResponse(user *domain.User) UserResponse {
-	return UserResponse{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		IsActive:  user.IsActive,
-		Roles:     user.RoleNames(),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-	}
 }
