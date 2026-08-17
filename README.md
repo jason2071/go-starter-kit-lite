@@ -39,9 +39,7 @@ internal/
 │   └── config.go           # Fiber, CORS and request-ID configuration
 ├── domain/
 │   ├── user.go
-│   ├── user_repository.go          # UserRepository contract
-│   ├── refresh_token.go
-│   └── refresh_token_repository.go # RefreshTokenRepository contract
+│   └── refresh_token.go
 ├── usecase/
 │   ├── auth_service.go
 │   ├── auth_types.go
@@ -116,7 +114,6 @@ For `Category`, follow the same naming pattern:
 
 ```text
 internal/domain/category.go
-internal/domain/category_repository.go
 internal/usecase/category_service.go
 internal/usecase/category_types.go
 internal/repository/category_repository.go

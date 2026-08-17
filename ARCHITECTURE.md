@@ -62,8 +62,7 @@ GetCurrentUser
 This makes a new feature such as Category predictable:
 
 ```text
-domain/category.go
-domain/category_repository.go
+domain/category.go                  entity and repository contract
 usecase/category_service.go
 usecase/category_types.go
 repository/category_repository.go
